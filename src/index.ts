@@ -1,4 +1,3 @@
-import { getText as getClipboardText, setText as setClipboardText } from "@mariozechner/clipboard";
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { Key, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
 import { open, type GlimpseWindow } from "glimpseui";
@@ -6,12 +5,10 @@ import { getReviewWindowData, loadReviewFileContents } from "./git.js";
 import { composeReviewPrompt } from "./prompt.js";
 import type {
   ReviewCancelPayload,
-  ReviewCopyTextPayload,
   ReviewFile,
   ReviewFileContents,
   ReviewHostMessage,
   ReviewRequestFilePayload,
-  ReviewRequestPastePayload,
   ReviewSubmitPayload,
   ReviewWindowMessage,
 } from "./types.js";
@@ -27,14 +24,6 @@ function isCancelPayload(value: ReviewWindowMessage): value is ReviewCancelPaylo
 
 function isRequestFilePayload(value: ReviewWindowMessage): value is ReviewRequestFilePayload {
   return value.type === "request-file";
-}
-
-function isRequestPastePayload(value: ReviewWindowMessage): value is ReviewRequestPastePayload {
-  return value.type === "request-paste";
-}
-
-function isCopyTextPayload(value: ReviewWindowMessage): value is ReviewCopyTextPayload {
-  return value.type === "copy-text";
 }
 
 type WaitingEditorResult = "escape" | "window-settled";
@@ -219,42 +208,10 @@ export default function (pi: ExtensionAPI) {
           }
         };
 
-        const handleRequestPaste = async (message: ReviewRequestPastePayload): Promise<void> => {
-          try {
-            const text = await getClipboardText();
-            sendWindowMessage({
-              type: "paste-data",
-              requestId: message.requestId,
-              text,
-            });
-          } catch (error) {
-            const messageText = error instanceof Error ? error.message : String(error);
-            sendWindowMessage({
-              type: "paste-error",
-              requestId: message.requestId,
-              message: messageText,
-            });
-          }
-        };
-
-        const handleCopyText = async (message: ReviewCopyTextPayload): Promise<void> => {
-          try {
-            await setClipboardText(message.text);
-          } catch {}
-        };
-
         const onMessage = (data: unknown): void => {
           const message = data as ReviewWindowMessage;
           if (isRequestFilePayload(message)) {
             void handleRequestFile(message);
-            return;
-          }
-          if (isRequestPastePayload(message)) {
-            void handleRequestPaste(message);
-            return;
-          }
-          if (isCopyTextPayload(message)) {
-            void handleCopyText(message);
             return;
           }
           if (isSubmitPayload(message) || isCancelPayload(message)) {

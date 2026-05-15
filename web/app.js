@@ -56,8 +56,6 @@ let modifiedDecorations = [];
 let activeViewZones = [];
 let editorResizeObserver = null;
 let requestSequence = 0;
-let clipboardSequence = 0;
-const pendingPasteRequests = new Map();
 
 function escapeHtml(value) {
   return String(value)
@@ -864,211 +862,6 @@ function renderAll(options = {}) {
   }
 }
 
-function getEditableSelectionText() {
-  const element = document.activeElement;
-  if (!(element instanceof HTMLElement)) return null;
-
-  const isCommentTextarea = element.matches("textarea[data-comment-id]");
-  if (element.closest(".monaco-editor") && !isCommentTextarea) return null;
-
-  const tagName = element.tagName.toLowerCase();
-  if (tagName === "textarea" || tagName === "input") {
-    const start = typeof element.selectionStart === "number" ? element.selectionStart : null;
-    const end = typeof element.selectionEnd === "number" ? element.selectionEnd : null;
-    if (start == null || end == null || end <= start) return null;
-    return element.value.slice(start, end);
-  }
-
-  if (element.isContentEditable) {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return null;
-    return selection.toString();
-  }
-
-  return null;
-}
-
-function getFocusedMonacoSelectionText() {
-  if (!diffEditor) return null;
-  const editors = [diffEditor.getModifiedEditor(), diffEditor.getOriginalEditor()];
-  const focusedEditor = editors.find((editor) => typeof editor.hasTextFocus === "function" && editor.hasTextFocus());
-  if (!focusedEditor) return null;
-
-  const model = focusedEditor.getModel();
-  if (!model) return null;
-
-  const selections = focusedEditor.getSelections() || [];
-  const selectedParts = selections
-    .filter((selection) => selection.startLineNumber !== selection.endLineNumber || selection.startColumn !== selection.endColumn)
-    .map((selection) => model.getValueInRange(selection));
-
-  return selectedParts.length > 0 ? selectedParts.join("\n") : null;
-}
-
-function getWindowSelectionText() {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed) return null;
-  const text = selection.toString();
-  return text.length > 0 ? text : null;
-}
-
-function restoreFocus(element) {
-  if (!(element instanceof HTMLElement)) return;
-  try {
-    element.focus({ preventScroll: true });
-  } catch {
-    try {
-      element.focus();
-    } catch {}
-  }
-}
-
-function copyTextToClipboard(text) {
-  if (window.glimpse?.send) {
-    window.glimpse.send({ type: "copy-text", text });
-  }
-
-  const previousFocus = document.activeElement;
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("aria-hidden", "true");
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  textarea.style.top = "0";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-
-  let copied = false;
-  try {
-    copied = document.execCommand("copy");
-  } catch {
-    copied = false;
-  }
-
-  textarea.remove();
-  restoreFocus(previousFocus);
-
-  if (!copied && navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).catch(() => {});
-  }
-
-  return copied;
-}
-
-function getEditableTarget() {
-  const element = document.activeElement;
-  if (!(element instanceof HTMLElement)) return null;
-
-  const isInputLike = element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement;
-  const isCommentTextarea = element.matches("textarea[data-comment-id]");
-  if (element.closest(".monaco-editor") && !isCommentTextarea) return null;
-
-  if (isInputLike) {
-    if (element.disabled || element.readOnly) return null;
-    return element;
-  }
-
-  if (element.isContentEditable) return element;
-  return null;
-}
-
-function getTargetSelectionState(element) {
-  if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
-    return {
-      start: typeof element.selectionStart === "number" ? element.selectionStart : element.value.length,
-      end: typeof element.selectionEnd === "number" ? element.selectionEnd : element.value.length,
-    };
-  }
-
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return null;
-  const range = selection.getRangeAt(0);
-  if (!element.contains(range.commonAncestorContainer)) return null;
-  return { range: range.cloneRange() };
-}
-
-function insertTextIntoTarget(element, text, selectionState) {
-  if (!(element instanceof HTMLElement) || !document.contains(element)) return;
-  restoreFocus(element);
-
-  if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
-    const start = typeof selectionState?.start === "number" ? selectionState.start : element.value.length;
-    const end = typeof selectionState?.end === "number" ? selectionState.end : element.value.length;
-    if (typeof element.setRangeText === "function") {
-      element.setRangeText(text, start, end, "end");
-    } else {
-      element.value = `${element.value.slice(0, start)}${text}${element.value.slice(end)}`;
-      const cursor = start + text.length;
-      element.setSelectionRange(cursor, cursor);
-    }
-    element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
-    return;
-  }
-
-  if (element.isContentEditable) {
-    const selection = window.getSelection();
-    if (selectionState?.range && selection) {
-      selection.removeAllRanges();
-      selection.addRange(selectionState.range);
-    }
-    document.execCommand("insertText", false, text);
-    element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertFromPaste", data: text }));
-  }
-}
-
-function requestPasteIntoActiveTarget() {
-  const target = getEditableTarget();
-  if (!target) return false;
-
-  const requestId = `paste:${Date.now()}:${++clipboardSequence}`;
-  pendingPasteRequests.set(requestId, {
-    target,
-    selectionState: getTargetSelectionState(target),
-  });
-
-  if (window.glimpse?.send) {
-    window.glimpse.send({ type: "request-paste", requestId });
-    return true;
-  }
-
-  if (navigator.clipboard?.readText) {
-    navigator.clipboard.readText()
-      .then((text) => {
-        const request = pendingPasteRequests.get(requestId);
-        pendingPasteRequests.delete(requestId);
-        if (request && text) insertTextIntoTarget(request.target, text, request.selectionState);
-      })
-      .catch(() => pendingPasteRequests.delete(requestId));
-    return true;
-  }
-
-  pendingPasteRequests.delete(requestId);
-  return false;
-}
-
-function handleCopyShortcut(event) {
-  const isCopy = event.key?.toLowerCase() === "c" && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
-  if (!isCopy) return;
-
-  const text = getEditableSelectionText() || getFocusedMonacoSelectionText() || getWindowSelectionText();
-  if (!text) return;
-
-  event.preventDefault();
-  event.stopPropagation();
-  copyTextToClipboard(text);
-}
-
-function handlePasteShortcut(event) {
-  const isPaste = event.key?.toLowerCase() === "v" && (event.metaKey || event.ctrlKey) && !event.altKey;
-  if (!isPaste) return;
-
-  if (!requestPasteIntoActiveTarget()) return;
-  event.preventDefault();
-  event.stopPropagation();
-}
-
 function createGlyphHoverActions(editor, side) {
   let hoverDecoration = [];
 
@@ -1127,21 +920,6 @@ function createGlyphHoverActions(editor, side) {
 
 window.__reviewReceive = function (message) {
   if (!message || typeof message !== "object") return;
-
-  if (message.type === "paste-data") {
-    const request = pendingPasteRequests.get(message.requestId);
-    pendingPasteRequests.delete(message.requestId);
-    if (request && typeof message.text === "string") {
-      insertTextIntoTarget(request.target, message.text, request.selectionState);
-    }
-    return;
-  }
-
-  if (message.type === "paste-error") {
-    pendingPasteRequests.delete(message.requestId);
-    return;
-  }
-
   const key = cacheKey(message.scope, message.fileId);
 
   if (message.type === "file-data") {
@@ -1324,9 +1102,6 @@ sidebarSearchInputEl.addEventListener("keydown", (event) => {
     renderTree();
   }
 });
-
-document.addEventListener("keydown", handleCopyShortcut, true);
-document.addEventListener("keydown", handlePasteShortcut, true);
 
 ensureActiveFileForScope();
 renderTree();
