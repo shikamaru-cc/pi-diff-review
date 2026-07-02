@@ -12,7 +12,7 @@ import type {
   ReviewSubmitPayload,
   ReviewWindowMessage,
 } from "./types.js";
-import { buildReviewHtml } from "./ui.js";
+import { writeReviewHtmlFile } from "./ui.js";
 
 function isSubmitPayload(value: ReviewWindowMessage): value is ReviewSubmitPayload {
   return value.type === "submit";
@@ -123,12 +123,13 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const html = buildReviewHtml({ repoRoot, files, commits });
-    const window = open(html, {
+    const htmlPath = writeReviewHtmlFile({ repoRoot, files, commits });
+    const window = open("", {
       width: 1680,
       height: 1020,
       title: "pi review",
     });
+    window.once("ready", () => window.loadFile(htmlPath));
     activeWindow = window;
 
     const waitingUI = showWaitingUI(ctx);

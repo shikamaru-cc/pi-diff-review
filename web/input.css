@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --color-review-bg: #0d1117;
+  --color-review-panel: #161b22;
+  --color-review-border: #30363d;
+  --color-review-text: #c9d1d9;
+  --color-review-muted: #8b949e;
+  --color-review-accent: #58a6ff;
+}

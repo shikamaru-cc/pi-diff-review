@@ -511,6 +511,7 @@ function updateScopeButtons() {
   scopeLastCommitButton.textContent = `Last commit${counts.lastCommit > 0 ? ` (${counts.lastCommit})` : ""}`;
   scopeCommitButton.textContent = `Commits${counts.commit > 0 ? ` (${counts.commit})` : ""}`;
   scopeAllButton.textContent = `All files${counts.all > 0 ? ` (${counts.all})` : ""}`;
+  scopeAllButton.style.display = "none";
 
   applyButtonClasses(scopeDiffButton, state.currentScope === "git-diff", counts.diff === 0);
   applyButtonClasses(scopeLastCommitButton, state.currentScope === "last-commit", counts.lastCommit === 0);
@@ -976,7 +977,7 @@ window.__reviewReceive = function (message) {
 function setupMonaco() {
   window.require.config({
     paths: {
-      vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs",
+      vs: "./vs",
     },
   });
 
@@ -1048,7 +1049,7 @@ function switchScope(scope) {
     "git-diff": reviewData.files.some((file) => file.inGitDiff),
     "last-commit": reviewData.files.some((file) => file.inLastCommit),
     "commit": !!state.selectedCommitSha && reviewData.files.some((file) => file.commitComparisons?.[state.selectedCommitSha]),
-    "all-files": reviewData.files.some((file) => file.hasWorkingTreeFile),
+    "all-files": false,
   };
   if (!hasScopeFiles[scope] || state.currentScope === scope) return;
   saveCurrentScrollPosition();

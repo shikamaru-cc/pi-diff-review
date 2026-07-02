@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "check": "tsgo --noEmit",
+    "prepare-assets": "node scripts/prepare-assets.mjs",
+    "postinstall": "node scripts/prepare-assets.mjs",
     "prepare": "husky"
   },
   "pi": {
@@ -13,7 +15,10 @@
     ]
   },
   "dependencies": {
-    "glimpseui": "^0.8.1"
+    "glimpseui": "^0.8.1",
+    "monaco-editor": "^0.52.2",
+    "@tailwindcss/cli": "^4.1.14",
+    "tailwindcss": "^4.1.14"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"

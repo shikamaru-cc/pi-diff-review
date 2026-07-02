@@ -298,24 +298,15 @@ export async function getReviewWindowData(pi: ExtensionAPI, cwd: string): Promis
   const currentPaths = uniquePaths([...parseTrackedPaths(trackedFilesOutput), ...parseTrackedPaths(untrackedOutput)])
     .filter((path) => !deletedPaths.has(path))
     .filter(isReviewableFilePath);
+  const currentPathSet = new Set(currentPaths);
   const lastCommitChanges = parseNameStatus(lastCommitOutput)
     .filter((change) => isReviewableFilePath(change.newPath ?? change.oldPath ?? ""));
 
   const seeds = new Map<string, ReviewFileSeed>();
 
-  for (const path of currentPaths) {
-    seeds.set(path, {
-      path,
-      worktreeStatus: null,
-      hasWorkingTreeFile: true,
-      inGitDiff: false,
-      inLastCommit: false,
-      gitDiff: null,
-      lastCommit: null,
-      commitComparisons: {},
-    });
-  }
-
+  // Do not seed every tracked file. Large repositories can have tens of
+  // thousands of files, which makes the inline review HTML huge and can blank
+  // the Glimpse window. Keep only files relevant to diff/commit review.
   for (const change of worktreeChanges) {
     const key = change.newPath ?? change.oldPath ?? toDisplayPath(change);
     const seed = upsertSeed(seeds, key, () => ({
@@ -339,7 +330,7 @@ export async function getReviewWindowData(pi: ExtensionAPI, cwd: string): Promis
     const seed = upsertSeed(seeds, key, () => ({
       path: key,
       worktreeStatus: null,
-      hasWorkingTreeFile: change.newPath != null && currentPaths.includes(change.newPath),
+      hasWorkingTreeFile: change.newPath != null && currentPathSet.has(change.newPath),
       inGitDiff: false,
       inLastCommit: false,
       gitDiff: null,
@@ -356,7 +347,7 @@ export async function getReviewWindowData(pi: ExtensionAPI, cwd: string): Promis
       const seed = upsertSeed(seeds, key, () => ({
         path: key,
         worktreeStatus: null,
-        hasWorkingTreeFile: change.newPath != null && currentPaths.includes(change.newPath),
+        hasWorkingTreeFile: change.newPath != null && currentPathSet.has(change.newPath),
         inGitDiff: false,
         inLastCommit: false,
         gitDiff: null,

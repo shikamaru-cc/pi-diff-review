@@ -4,17 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>pi review</title>
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-<style type="text/tailwindcss">
-  @theme {
-    --color-review-bg: #0d1117;
-    --color-review-panel: #161b22;
-    --color-review-border: #30363d;
-    --color-review-text: #c9d1d9;
-    --color-review-muted: #8b949e;
-    --color-review-accent: #58a6ff;
-  }
-</style>
+<link rel="stylesheet" href="./tailwind.css">
 <style>
   html, body {
     width: 100%;
@@ -152,7 +142,7 @@
         <button id="scope-diff-button" class="cursor-pointer rounded-md border border-review-border bg-review-panel px-2.5 py-1 text-[11px] font-medium text-review-text hover:bg-[#21262d]">Git diff</button>
         <button id="scope-last-commit-button" class="cursor-pointer rounded-md border border-review-border bg-review-panel px-2.5 py-1 text-[11px] font-medium text-review-text hover:bg-[#21262d]">Last commit</button>
         <button id="scope-commit-button" class="cursor-pointer rounded-md border border-review-border bg-review-panel px-2.5 py-1 text-[11px] font-medium text-review-text hover:bg-[#21262d]">Commits</button>
-        <button id="scope-all-button" class="cursor-pointer rounded-md border border-review-border bg-review-panel px-2.5 py-1 text-[11px] font-medium text-review-text hover:bg-[#21262d]">All files</button>
+        <button id="scope-all-button" class="hidden" style="display:none">All files</button>
       </div>
       <select id="commit-select" class="mb-3 hidden w-full rounded-md border border-review-border bg-review-panel px-2 py-2 text-xs text-review-text outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></select>
       <input id="sidebar-search-input" type="text" spellcheck="false" autocomplete="off" placeholder="Search files" class="w-full rounded-md border border-review-border bg-review-panel px-3 py-2 text-sm text-review-text outline-none placeholder:text-review-muted focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
@@ -180,7 +170,7 @@
 </div>
 
 <script id="diff-review-data" type="application/json">__INLINE_DATA__</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+<script src="./vs/loader.js"></script>
 <script>
 __INLINE_JS__
 </script>

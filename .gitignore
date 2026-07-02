@@ -1,2 +1,6 @@
 node_modules/
+.assets/
+web/.review-*.html
+web/tailwind.css
+web/vs/
 .pi/hf-sessions/
