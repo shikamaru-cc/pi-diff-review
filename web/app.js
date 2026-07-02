@@ -12,7 +12,7 @@ const state = {
   comments: [],
   overallComment: "",
   hideUnchanged: false,
-  wrapLines: true,
+  wrapLines: false,
   collapsedDirs: {},
   reviewedFiles: {},
   scrollPositions: {},
@@ -1005,14 +1005,14 @@ function setupMonaco() {
       originalEditable: false,
       minimap: { enabled: true, renderCharacters: false, showSlider: "always", size: "proportional" },
       renderOverviewRuler: true,
-      diffWordWrap: "on",
+      diffWordWrap: "off",
       scrollBeyondLastLine: false,
       lineNumbersMinChars: 4,
       glyphMargin: true,
       folding: true,
       lineDecorationsWidth: 10,
       overviewRulerBorder: false,
-      wordWrap: "on",
+      wordWrap: "off",
     });
 
     createGlyphHoverActions(diffEditor.getOriginalEditor(), "original");
